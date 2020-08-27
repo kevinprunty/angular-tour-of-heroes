@@ -11,6 +11,10 @@ import { catchError, map, tap } from 'rxjs/operators';
 })
 export class HeroService {
 
+  httpOptions = {
+    headers: new HttpHeaders({ 'Content-Type': 'application/json' })
+  };
+
   constructor(private messageService: MessageService, private http: HttpClient) { }
 
   private log(message: string) { 
@@ -22,15 +26,20 @@ export class HeroService {
   getHeroes(): Observable<Hero[]> {
     this.messageService.add('HeroService: fetched heroes');
     return this.http.get<Hero[]>(this.heroesUrl)
-    .pipe(catchError(this.handleError<Hero[]>('getHeroes', []))
+    .pipe(
+      tap(_ => this.log('fetched heroes')),
+      catchError(this.handleError<Hero[]>('getHeroes', []))
     );
   }
 
-  getHero(id: number): Observable<Hero> {
-    // TODO: send the message _after_ fetching the hero
-    this.messageService.add(`HeroService: fetched hero id=${id}`);
-    return of(HEROES.find(hero => hero.id === id));
-  }
+/** GET hero by id. Will 404 if id not found */
+getHero(id: number): Observable<Hero> {
+  const url = `${this.heroesUrl}/${id}`;
+  return this.http.get<Hero>(url).pipe(
+    tap(_ => this.log(`fetched hero id=${id}`)),
+    catchError(this.handleError<Hero>(`getHero id=${id}`))
+  );
+}
 
   /**
  * Handle Http operation that failed.
@@ -50,5 +59,13 @@ private handleError<T>(operation = 'operation', result?: T) {
     // Let the app keep running by returning an empty result.
     return of(result as T);
   };
+}
+
+/** PUT: update the hero on the server */
+updateHero(hero: Hero): Observable<any> {
+  return this.http.put(this.heroesUrl, hero, this.httpOptions).pipe(
+    tap(_ => this.log(`updated hero id=${hero.id}`)),
+    catchError(this.handleError<any>('updateHero'))
+  );
 }
 }
